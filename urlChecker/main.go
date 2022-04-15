@@ -7,11 +7,20 @@ import (
 	"time"
 )
 
+//for channel
+type resultRequest struct {
+	url    string
+	status string
+}
+
 var errRequestFailed = errors.New("Request failed")
 
 func main() {
+
 	// var을 사용하여 초기화 방법
 	var results = make(map[string]string)
+	results2 := make(map[string]string)
+	ch := make(chan resultRequest)
 	urls := []string{
 		"https://www.airbnb.com/",
 		"https://www.google.com/",
@@ -42,7 +51,12 @@ func main() {
 
 	//after checking urls concurrently through goroutines
 	for _, url := range urls {
-		hitURL(url)
+		go hitURLfast(url, ch)
+	}
+
+	for i := 0; i < len(urls); i++ {
+		result := <-ch
+		results2[result.url] = result.status
 	}
 
 	for url, result := range results {
@@ -90,6 +104,17 @@ func hitURL(url string) error {
 		return errRequestFailed
 	}
 	return nil
+}
+
+//send-only channel
+func hitURLfast(url string, ch chan<- resultRequest) {
+	fmt.Println("checking: " + url)
+	resp, err := http.Get(url)
+	status := "OK"
+	if err != nil || resp.StatusCode >= 400 {
+		status = "FAILED"
+	}
+	ch <- resultRequest{url: url, status: status}
 }
 
 // goroutine은 function이 실행되는동안만 유지된다.
